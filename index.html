@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>像素多益冒險 - TOEIC Pixel Adventure</title>
+    <!-- 引入 React 與 ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- 引入 Babel (負責翻譯 JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@700&display=swap" rel="stylesheet">
+    <style>
+        .pixel-font { font-family: 'Press Start 2P', cursive; }
+        .inter-font { font-family: 'Inter', sans-serif; }
+        .pixel-border {
+            border: 4px solid #000;
+            box-shadow: inset -4px -4px 0 0 rgba(0,0,0,0.2), inset 4px 4px 0 0 rgba(255,255,255,0.1);
+        }
+        .border-correct {
+            border-color: #22c55e !important;
+            background-color: #14532d !important;
+            box-shadow: inset -4px -4px 0 0 #15803d, inset 4px 4px 0 0 #4ade80 !important;
+        }
+        .border-wrong {
+            border-color: #ef4444 !important;
+            background-color: #7f1d1d !important;
+            box-shadow: inset -4px -4px 0 0 #991b1b, inset 4px 4px 0 0 #f87171 !important;
+        }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-12px); filter: brightness(2); } 75% { transform: translateX(12px); filter: brightness(2); } }
+        .damage-anim { animation: shake 0.3s steps(4); }
+        @keyframes attack { 0% { transform: translateX(0); } 50% { transform: translateX(60px) scale(1.1); } 100% { transform: translateX(0); } }
+        .attack-anim { animation: attack 0.4s ease; }
+    </style>
+</head>
+<body class="bg-[#1a1a1a]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        const App = () => {
+            const [screen, setScreen] = useState('start');
+            const [playerName, setPlayerName] = useState('PLAYER');
+            const [score, setScore] = useState(0);
+            const [heroHP, setHeroHP] = useState(100);
+            const [monsterHP, setMonsterHP] = useState(100);
+            const [currentWord, setCurrentWord] = useState(null);
+            const [choices, setChoices] = useState([]);
+            const [combo, setCombo] = useState(0);
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [selectedIdx, setSelectedIdx] = useState(null);
+            const [monster, setMonster] = useState({ name: '', key: 'slime' });
+            const [feedback, setFeedback] = useState('');
+            const [selectedVocabSet, setSelectedVocabSet] = useState([]);
+
+            const ESSENTIAL_100 = [
+                { word: 'serve', translation: '服務 / 擔任' }, { word: 'position', translation: '職位 / 位置' },
+                { word: 'interview', translation: '面試 / 訪談' }, { word: 'available', translation: '可用的 / 有空的' },
+                { word: 'construct', translation: '建造' }, { word: 'promotion', translation: '升遷 / 促銷' },
+                { word: 'order', translation: '訂單 / 訂購' }, { word: 'deliver', translation: '運送 / 發表' },
+                { word: 'apologize', translation: '道歉' }, { word: 'confirm', translation: '確認' },
+                { word: 'complimentary', translation: '免費的 / 讚美的' }, { word: 'arrange', translation: '安排' },
+                { word: 'contact', translation: '聯絡' }, { word: 'reply', translation: '回覆 / 做出回應' },
+                { word: 'delay', translation: '延遲' }, { word: 'alternative', translation: '替代方案' },
+                { word: 'accept', translation: '接受' }, { word: 'consider', translation: '考慮 / 認為' },
+                { word: 'reservation', translation: '預定 / 保留' }, { word: 'employee', translation: '員工' },
+                { word: 'demand', translation: '需求 / 要求' }, { word: 'increase', translation: '增加' },
+                { word: 'locate', translation: '定位 / 設置' }, { word: 'announce', translation: '宣布 / 公告' },
+                { word: 'proposal', translation: '提案 / 計劃' }, { word: 'charge', translation: '收費 / 費用' },
+                { word: 'recognize', translation: '認識 / 表彰' }, { word: 'purchase', translation: '購買' },
+                { word: 'customer', translation: '顧客' }, { word: 'participate', translation: '參加' },
+                { word: 'replace', translation: '取代 / 替換' }, { word: 'due', translation: '到期的' },
+                { word: 'assist', translation: '協助 / 幫助' }, { word: 'cancel', translation: '取消' },
+                { word: 'postpone', translation: '延期' }, { word: 'request', translation: '要求' },
+                { word: 'storage', translation: '儲藏' }, { word: 'suggest', translation: '建議' },
+                { word: 'supply', translation: '供應' }, { word: 'recruit', translation: '招募' },
+                { word: 'inquire', translation: '詢問' }, { word: 'innovation', translation: '創新' },
+                { word: 'opportunity', translation: '機會' }, { word: 'receive', translation: '收到' },
+                { word: 'concern', translation: '使擔憂 / 關於' }, { word: 'access', translation: '存取 / 權限' },
+                { word: 'apply', translation: '申請 / 適用' }, { word: 'inform', translation: '通知' },
+                { word: 'require', translation: '需要' }, { word: 'arrival', translation: '抵達' },
+                { word: 'schedule', translation: '時間表' }, { word: 'submit', translation: '提交' },
+                { word: 'adhere', translation: '遵守' }, { word: 'estimate', translation: '估計' },
+                { word: 'shipment', translation: '運送' }, { word: 'remind', translation: '提醒' },
+                { word: 'approval', translation: '批准' }, { word: 'notice', translation: '通知' },
+                { word: 'contribution', translation: '貢獻' }, { word: 'board', translation: '董事會' },
+                { word: 'advertise', translation: '宣傳' }, { word: 'specific', translation: '明確的' },
+                { word: 'receipt', translation: '收據' }, { word: 'organization', translation: '組織' },
+                { word: 'temporary', translation: '暫時的' }, { word: 'inspect', translation: '檢查' },
+                { word: 'evaluation', translation: '評估' }, { word: 'supervise', translation: '監督' },
+                { word: 'community', translation: '社區' }, { word: 'perspective', translation: '觀點' },
+                { word: 'renowned', translation: '著名的' }, { word: 'eligible', translation: '有資格的' },
+                { word: 'indicate', translation: '表示' }, { word: 'invoice', translation: '發票' },
+                { word: 'résumé', translation: '履歷' }, { word: 'catering', translation: '餐飲服務' },
+                { word: 'accommodation', translation: '住宿' }, { word: 'grant', translation: '補助金' },
+                { word: 'extend', translation: '延長' }, { word: 'expect', translation: '預期' },
+                { word: 'renovation', translation: '整修' }, { word: 'investment', translation: '投資' },
+                { word: 'development', translation: '發展' }, { word: 'profit', translation: '利潤' },
+                { word: 'recommendation', translation: '推薦' }, { word: 'productivity', translation: '生產力' },
+                { word: 'exclude', translation: '排除' }, { word: 'revise', translation: '修訂' },
+                { word: 'account', translation: '帳戶' }, { word: 'yield', translation: '產生利潤' },
+                { word: 'fund', translation: '資金' }, { word: 'market', translation: '市場' },
+                { word: 'transportation', translation: '運輸' }, { word: 'inventory', translation: '庫存' },
+                { word: 'software', translation: '軟體' }, { word: 'regulation', translation: '法規' },
+                { word: 'permit', translation: '許可證' }, { word: 'conference', translation: '會議' },
+                { word: 'conduct', translation: '執行' }
+            ];
+
+            // MASTER_500 額外擴充 100 個單字
+            const EXTENSION_100 = [
+                { word: 'abbreviate', translation: '縮寫 / 簡略' }, { word: 'allocate', translation: '分配 / 撥給' },
+                { word: 'authorize', translation: '授權 / 批准' }, { word: 'brainstorm', translation: '腦力激盪' },
+                { word: 'collaboration', translation: '合作 / 協作' }, { word: 'curriculum', translation: '課程 / 履歷' },
+                { word: 'depreciation', translation: '貶值 / 折舊' }, { word: 'discrepancy', translation: '差異 / 不一致' },
+                { word: 'fluctuation', translation: '波動 / 起伏' }, { word: 'infrastructure', translation: '基礎建設' },
+                { word: 'mandatory', translation: '強制性的' }, { word: 'preliminary', translation: '初步的' },
+                { word: 'subsidiary', translation: '子公司' }, { word: 'unanimous', translation: '全體一致的' },
+                { word: 'accrue', translation: '累積 / 增加' }, { word: 'acquisition', translation: '收購 / 獲得' },
+                { word: 'affiliate', translation: '附屬機構' }, { word: 'amendment', translation: '修正案' },
+                { word: 'bankrupt', translation: '破產的' }, { word: 'benchmark', translation: '基準 / 標竿' },
+                { word: 'beverage', translation: '飲料' }, { word: 'bid', translation: '出價 / 投標' },
+                { word: 'blueprint', translation: '藍圖 / 計畫' }, { word: 'broker', translation: '經紀人' },
+                { word: 'campaign', translation: '行銷活動' }, { word: 'clause', translation: '條款' },
+                { word: 'commission', translation: '佣金 / 委託' }, { word: 'commodity', translation: '商品' },
+                { word: 'compliance', translation: '遵守 / 合規' }, { word: 'compromise', translation: '妥協' },
+                { word: 'concourse', translation: '大廳 / 廣場' }, { word: 'consensus', translation: '共識' },
+                { word: 'contractor', translation: '承包商' }, { word: 'courier', translation: '快遞員' },
+                { word: 'deficit', translation: '赤字 / 虧損' }, { word: 'dividend', translation: '紅利 / 股息' },
+                { word: 'endorsement', translation: '背書 / 代言' }, { word: 'executive', translation: '高階主管' },
+                { word: 'expenditure', translation: '支出' }, { word: 'facilitate', translation: '促進 / 使便利' },
+                { word: 'franchise', translation: '加盟權 / 經銷權' }, { word: 'guarantee', translation: '保證 / 擔保' },
+                { word: 'implement', translation: '實施 / 執行' }, { word: 'incentive', translation: '獎勵 / 誘因' },
+                { word: 'incorporate', translation: '合併 / 納入' }, { word: 'itinerary', translation: '行程表' },
+                { word: 'lease', translation: '租約' }, { word: 'legislation', translation: '立法' },
+                { word: 'liquidation', translation: '清算 / 償付' }, { word: 'logistics', translation: '物流' },
+                { word: 'monopoly', translation: '壟斷' }, { word: 'mortgage', translation: '抵押貸款' },
+                { word: 'overhead', translation: '經常性開支' }, { word: 'patent', translation: '專利' },
+                { word: 'personnel', translation: '人事部門' }, { word: 'portfolio', translation: '投資組合' },
+                { word: 'premium', translation: '保險費 / 獎金' }, { word: 'privilege', translation: '特權' },
+                { word: 'procurement', translation: '採購' }, { word: 'prospective', translation: '預期的 / 未來的' },
+                { word: 'quota', translation: '配額 / 限額' }, { word: 'reconcile', translation: '調和 / 對帳' },
+                { word: 'redundant', translation: '多餘的 / 被解雇的' }, { word: 'refund', translation: '退款' },
+                { word: 'remittance', translation: '匯款' }, { word: 'retail', translation: '零售' },
+                { word: 'revenue', translation: '營收 / 稅入' }, { word: 'shareholder', translation: '股東' },
+                { word: 'specifications', translation: '規格 / 詳述' }, { word: 'stagnant', translation: '停滯的' },
+                { word: 'stationery', translation: '文具' }, { word: 'stipulate', translation: '規定' },
+                { word: 'surplus', translation: '盈餘' }, { word: 'tariff', translation: '關稅' },
+                { word: 'tenant', translation: '房客 / 承租人' }, { word: 'transaction', translation: '交易' },
+                { word: 'utility', translation: '公共事業 / 效用' }, { word: 'vendor', translation: '供應商' },
+                { word: 'venture', translation: '風險企業' }, { word: 'warehouse', translation: '倉庫' },
+                { word: 'wholesale', translation: '批發' }, { word: 'withdrawal', translation: '提款 / 撤退' },
+                { word: 'workforce', translation: '勞動力' }, { word: 'workshop', translation: '研討會 / 工作坊' },
+                { word: 'yield', translation: '產量 / 收益' }, { word: 'audit', translation: '審計 / 查帳' },
+                { word: 'briefing', translation: '簡報' }, { word: 'bulletin', translation: '公告 / 報報' },
+                { word: 'cargo', translation: '貨物' }, { word: 'colleague', translation: '同事' },
+                { word: 'credential', translation: '憑據 / 資歷' }, { word: 'distribution', translation: '分發 / 通路' },
+                { word: 'durable', translation: '耐用的' }, { word: 'efficiency', translation: '效率' },
+                { word: 'equipment', translation: '設備' }, { word: 'expertise', translation: '專業知識' },
+                { word: 'extension', translation: '分機 / 延長' }, { word: 'forecast', translation: '預測' },
+                { word: 'installment', translation: '分期付款' }, { word: 'negotiation', translation: '談判' }
+            ];
+
+            const MASTER_500 = [...ESSENTIAL_100, ...EXTENSION_100];
+
+            const MONSTERS = [
+                { name: '史萊姆', key: 'slime' }, { name: '幽靈', key: 'ghost' },
+                { name: '吸血蝙蝠', key: 'bat' }, { name: '半獸人', key: 'orc' }, { name: '小紅龍', key: 'dragon' }
+            ];
+
+            const ICONS = {
+                hero: (<svg viewBox="0 0 16 16"><rect x="5" y="2" width="6" height="6" fill="#475569"/><rect x="6" y="3" width="4" height="1" fill="#94a3b8"/><rect x="6" y="5" width="4" height="2" fill="#ffdbac"/><rect x="6" y="5" width="1" height="1" fill="#000"/><rect x="9" y="5" width="1" height="1" fill="#000"/><rect x="4" y="8" width="8" height="5" fill="#3b82f6"/><rect x="5" y="9" width="6" height="1" fill="#60a5fa"/><rect x="3" y="9" width="2" height="3" fill="#334155"/><rect x="11" y="9" width="2" height="3" fill="#334155"/><rect x="4" y="8" width="1" height="6" fill="#ef4444"/><rect x="11" y="8" width="1" height="6" fill="#ef4444"/><rect x="5" y="13" width="2" height="2" fill="#1e293b"/><rect x="9" y="13" width="2" height="2" fill="#1e293b"/></svg>),
+                slime: (<svg viewBox="0 0 16 16"><path d="M4 8h8v4H4z" fill="#22c55e"/><path d="M3 9h10v2H3z" fill="#22c55e"/><path d="M5 7h6v1H5z" fill="#22c55e"/><path d="M4 11h8v1H4z" fill="#166534"/><path d="M5 8h2v1H5z" fill="#4ade80"/><rect x="6" y="9" width="1" height="1" fill="#000"/><rect x="9" y="9" width="1" height="1" fill="#000"/><rect x="5" y="10" width="1" height="1" fill="#f472b6" opacity="0.6"/><rect x="10" y="10" width="1" height="1" fill="#f472b6" opacity="0.6"/></svg>),
+                ghost: (<svg viewBox="0 0 16 16"><path d="M5 3h6v9H5z" fill="#f8fafc"/><path d="M4 4h8v7H4z" fill="#f8fafc"/><path d="M6 2h4v1H6z" fill="#f8fafc"/><path d="M4 11h1v2H4zm2 0h1v2H6zm2 0h1v2H8zm2 0h1v2h-1z" fill="#f8fafc"/><path d="M11 5h1v6h-1z" fill="#e2e8f0"/><rect x="6" y="6" width="1" height="2" fill="#000"/><rect x="9" y="6" width="1" height="2" fill="#000"/><rect x="7" y="9" width="2" height="1" fill="#fda4af"/></svg>),
+                bat: (<svg viewBox="0 0 16 16"><path d="M1 5h4v4H1zm10 0h4v4h-4z" fill="#334155"/><path d="M0 6h2v2H0zm14 0h2v2h-2z" fill="#1e293b"/><rect x="6" y="4" width="4" height="7" fill="#475569"/><rect x="7" y="3" width="2" height="2" fill="#475569"/><rect x="6" y="2" width="1" height="2" fill="#475569"/><rect x="9" y="2" width="1" height="2" fill="#475569"/><rect x="7" y="6" width="1" height="1" fill="#f87171"/><rect x="8" y="6" width="1" height="1" fill="#f87171"/></svg>),
+                orc: (<svg viewBox="0 0 16 16"><rect x="4" y="8" width="8" height="6" fill="#b91c1c"/><rect x="5" y="3" width="6" height="6" fill="#166534"/><rect x="6" y="2" width="4" height="1" fill="#166534"/><rect x="6" y="7" width="1" height="1" fill="#fff"/><rect x="9" y="7" width="1" height="1" fill="#fff"/><rect x="6" y="5" width="1" height="1" fill="#facc15"/><rect x="9" y="5" width="1" height="1" fill="#facc15"/><rect x="3" y="8" width="3" height="2" fill="#4b5563"/><rect x="10" y="8" width="3" height="2" fill="#4b5563"/></svg>),
+                dragon: (<svg viewBox="0 0 16 16"><path d="M2 6h3v4H2zm9 0h3v4h-3z" fill="#c2410c"/><rect x="5" y="5" width="6" height="8" fill="#ea580c"/><rect x="6" y="6" width="4" height="6" fill="#f97316"/><rect x="7" y="8" width="2" height="1" fill="#fde047"/><rect x="7" y="10" width="2" height="1" fill="#fde047"/><rect x="6" y="2" width="6" height="5" fill="#ea580c"/><path d="M11 1h1v2h-1zm-6 1h1v2H5z" fill="#fde047"/><rect x="10" y="4" width="1" height="1" fill="#000"/></svg>)
+            };
+
+            const nextQuestion = (targetVocab = selectedVocabSet) => {
+                setIsProcessing(false); setSelectedIdx(null); setMonsterHP(100); setFeedback('');
+                const wordData = targetVocab[Math.floor(Math.random() * targetVocab.length)];
+                setCurrentWord(wordData);
+                setMonster(MONSTERS[Math.floor(Math.random() * MONSTERS.length)]);
+                let options = [wordData.translation];
+                while (options.length < 4) {
+                    const rW = targetVocab[Math.floor(Math.random() * targetVocab.length)];
+                    if (!options.includes(rW.translation)) options.push(rW.translation);
+                }
+                setChoices(options.sort(() => Math.random() - 0.5));
+            };
+
+            const handleAnswer = (selected, idx) => {
+                if (isProcessing || !currentWord) return;
+                setIsProcessing(true); setSelectedIdx(idx);
+                const isCorrect = selected === currentWord.translation;
+
+                if (isCorrect) {
+                    setFeedback('CORRECT!');
+                    setTimeout(() => { setMonsterHP(0); setScore(p => p + 100 + (combo * 20)); setCombo(p => p + 1); }, 200);
+                    setTimeout(() => nextQuestion(), 1000);
+                } else {
+                    setFeedback('WRONG!'); setCombo(0);
+                    setTimeout(() => {
+                        setHeroHP(p => {
+                            const next = p - 20;
+                            if (next <= 0) { setScreen('gameover'); return 0; }
+                            return next;
+                        });
+                        if (heroHP > 20) nextQuestion();
+                    }, 1200);
+                }
+            };
+
+            const startGame = () => {
+                const input = document.getElementById('name-input')?.value.trim();
+                setPlayerName(input || 'PLAYER'); setScore(0); setHeroHP(100); setCombo(0); setScreen('level_select');
+            };
+
+            return (
+                <div className="flex flex-col items-center justify-center min-h-screen bg-[#1a1a1a] text-white p-4 font-mono select-none overflow-y-auto">
+                    {screen === 'start' && (
+                        <div className="flex flex-col items-center max-w-sm w-full">
+                            <h1 className="text-xl text-yellow-400 mb-6 text-center leading-loose pixel-font">像素多益冒險</h1>
+                            <div className="w-20 h-20 mb-6">{ICONS.hero}</div>
+                            <p className="text-[10px] mb-4 text-gray-400 pixel-font">輸入你的冒險者名稱：</p>
+                            <input type="text" id="name-input" className="w-full bg-white border-4 border-black p-3 text-black text-center outline-none pixel-font text-[12px]" placeholder="PLAYER" maxLength={8} />
+                            <button onClick={startGame} className="mt-6 pixel-border bg-[#334155] p-3 w-full pixel-font text-[14px] hover:bg-[#475569] active:translate-y-1">開始冒險</button>
+                        </div>
+                    )}
+                    {screen === 'level_select' && (
+                        <div className="flex flex-col items-center max-w-sm w-full">
+                            <h2 className="text-lg text-blue-400 mb-6 pixel-font text-center">選擇挑戰等級</h2>
+                            <button onClick={() => { setSelectedVocabSet(ESSENTIAL_100); setScreen('battle'); nextQuestion(ESSENTIAL_100); }} className="pixel-border bg-[#166534] p-4 w-full text-left active:translate-y-1 mb-4">
+                                <p className="pixel-font text-[12px] text-yellow-400 mb-1">Level 1</p>
+                                <p className="pixel-font text-[14px]">必背精選</p>
+                            </button>
+                            <button onClick={() => { setSelectedVocabSet(MASTER_500); setScreen('battle'); nextQuestion(MASTER_500); }} className="pixel-border bg-[#334155] p-4 w-full text-left active:translate-y-1">
+                                <p className="pixel-font text-[12px] text-gray-300 mb-1">Level 2</p>
+                                <p className="pixel-font text-[14px]">延伸擴充</p>
+                            </button>
+                            <button onClick={() => setScreen('start')} className="mt-6 text-[10px] text-gray-500 pixel-font underline">返回名稱設定</button>
+                        </div>
+                    )}
+                    {screen === 'battle' && (
+                        <div className="flex flex-col items-center w-full max-w-lg">
+                            <div className="w-full flex justify-between mb-2">
+                                <div className="flex flex-col items-start">
+                                    <p className="text-[10px] text-gray-400 pixel-font">{playerName} HP</p>
+                                    <div className="w-32 h-4 bg-black border-2 border-white relative"><div className="h-full bg-red-500 transition-all duration-300" style={{ width: `${heroHP}%` }}></div></div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-gray-400 pixel-font">SCORE</p>
+                                    <p className="text-lg font-bold text-yellow-400 pixel-font">{score.toString().padStart(4, '0')}</p>
+                                </div>
+                            </div>
+                            <div className="w-full h-36 flex justify-around items-end pb-3 pixel-border bg-[#334155]/20 relative border-t-0 border-l-0 border-r-0 mb-4">
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className={`w-14 h-14 transition-transform ${isProcessing && feedback === 'CORRECT!' ? 'attack-anim' : ''}`}>{ICONS.hero}</div>
+                                    <p className="text-[8px] pixel-font">{playerName}</p>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className="w-24 h-3 bg-black border-2 border-white relative mb-1"><div className="h-full bg-red-500 transition-all duration-300" style={{ width: `${monsterHP}%` }}></div></div>
+                                    <div className={`w-14 h-14 transition-transform ${isProcessing && feedback === 'CORRECT!' ? 'damage-anim' : ''}`}>{ICONS[monster.key]}</div>
+                                    <p className="text-[8px] text-red-400 pixel-font">{monster.name}</p>
+                                </div>
+                                {feedback && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pixel-font text-xl z-50"><span className={feedback === 'CORRECT!' ? 'text-green-400' : 'text-red-500'}>{feedback}</span></div>}
+                            </div>
+                            <div className="w-full max-w-[450px] bg-white border-8 border-black p-3 mt-1 mb-4 text-black text-center">
+                                <p className="text-[8px] mb-1 text-gray-500 pixel-font uppercase">Challenge Word</p>
+                                <p className="text-3xl font-bold inter-font lowercase tracking-tighter">{currentWord?.word || 'loading...'}</p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 w-full max-w-md">
+                                {choices.map((choice, idx) => {
+                                    const isCorrect = choice === currentWord?.translation;
+                                    const isSelected = selectedIdx === idx;
+                                    let sClass = "bg-[#334155]";
+                                    if (isProcessing) {
+                                        if (isCorrect) sClass = "border-correct";
+                                        else if (isSelected && !isCorrect) sClass = "border-wrong";
+                                    }
+                                    return <button key={idx} onClick={() => handleAnswer(choice, idx)} className={`pixel-border py-3 px-4 text-[18px] font-bold text-left transition-all ${sClass}`}>{choice}</button>;
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    {screen === 'gameover' && (
+                        <div className="flex flex-col items-center max-w-sm w-full">
+                            <h2 className="text-2xl text-red-500 mb-6 pixel-font">冒險結束</h2>
+                            <p className="text-4xl text-yellow-400 mb-10 pixel-font tracking-widest">{score}</p>
+                            <button onClick={() => setScreen('start')} className="pixel-border bg-[#334155] p-3 w-full pixel-font text-[14px] hover:bg-[#475569] active:translate-y-1">再次挑戰</button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
